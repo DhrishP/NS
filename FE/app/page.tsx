@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import EnsGraph from '@/components/EnsGraph';
-import Link from 'next/link';
 import { Sheet } from '@/components/ui/Sheet';
 import ProfileDetails from '@/components/ProfileDetails';
 import { Plus, Link as LinkIcon, MousePointer2, Search } from 'lucide-react';
@@ -10,6 +9,9 @@ import { cn } from '@/lib/utils';
 export default function GraphPage() {
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchedProfile, setSearchedProfile] = useState<string | null>(null);
   
   // Editor State
   const [newNodeName, setNewNodeName] = useState('');
@@ -111,73 +113,89 @@ export default function GraphPage() {
   };
 
   return (
-    <main className="flex h-screen flex-col bg-gray-50">
+    <main className="flex h-screen flex-col bg-gray-50 font-sans">
       {/* Header */}
-      <header className="flex items-center justify-between border-b bg-white px-6 py-4 shadow-sm z-10">
+      <header className="flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md px-6 py-4 shadow-sm z-10 sticky top-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-gray-900">ENS Graph</h1>
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-600 text-white font-bold text-lg">
+            E
+          </div>
+          <h1 className="text-lg font-semibold text-gray-900 tracking-tight">ENS Graph</h1>
         </div>
         
         {/* Editor Toolbar */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
             {/* Add Node Form */}
-            <form onSubmit={handleAddNode} className="flex items-center gap-2">
-              <input 
-                type="text" 
-                value={newNodeName}
-                onChange={e => setNewNodeName(e.target.value)}
-                placeholder="Add vitalik.eth"
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
+            <form onSubmit={handleAddNode} className="flex items-center gap-2 relative">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value={newNodeName}
+                  onChange={e => setNewNodeName(e.target.value)}
+                  placeholder="vitalik.eth"
+                  className="w-64 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 border-0 ring-1 ring-gray-200 px-4 py-2 text-sm shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                {isLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600"></div>
+                  </div>
+                )}
+              </div>
               <button 
                 type="submit" 
                 disabled={isLoading || !newNodeName}
-                className="rounded-md bg-gray-900 p-2 text-white hover:bg-gray-800 disabled:opacity-50"
+                className="rounded-lg bg-gray-900 p-2 text-white shadow-sm transition-all hover:bg-gray-800 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Add Node"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
               </button>
             </form>
 
-            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+            <div className="h-6 w-px bg-gray-200 mx-2"></div>
 
             {/* Mode Toggle */}
-            <button
-              onClick={() => {
-                setIsConnectMode(false);
-                setConnectSource(null);
-              }}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                !isConnectMode ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"
-              )}
-            >
-              <MousePointer2 className="h-4 w-4" />
-              Inspect
-            </button>
-            <button
-              onClick={() => {
-                setIsConnectMode(true);
-                setSelectedNode(null); // Close sheet
-              }}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                isConnectMode ? "bg-blue-100 text-blue-700" : "text-gray-600 hover:bg-gray-100"
-              )}
-            >
-              <LinkIcon className="h-4 w-4" />
-              Connect
-            </button>
+            <div className="flex items-center rounded-lg bg-gray-100 p-1 ring-1 ring-gray-200">
+              <button
+                onClick={() => {
+                  setIsConnectMode(false);
+                  setConnectSource(null);
+                }}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  !isConnectMode 
+                    ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                )}
+              >
+                <MousePointer2 className="h-4 w-4" />
+                Inspect
+              </button>
+              <button
+                onClick={() => {
+                  setIsConnectMode(true);
+                  setSelectedNode(null); // Close sheet
+                }}
+                className={cn(
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  isConnectMode 
+                    ? "bg-white text-blue-600 shadow-sm ring-1 ring-gray-200" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                )}
+              >
+                <LinkIcon className="h-4 w-4" />
+                Connect
+              </button>
+            </div>
 
-            <div className="h-6 w-px bg-gray-300 mx-2"></div>
+            <div className="h-6 w-px bg-gray-200 mx-2"></div>
             
-            <Link 
-              href="/profile"
-              className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            <button 
+              onClick={() => setIsSearchOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
             >
               <Search className="h-4 w-4" />
               Profiles
-            </Link>
+            </button>
         </div>
       </header>
 
@@ -212,6 +230,54 @@ export default function GraphPage() {
         title="ENS Profile"
       >
         {selectedNode && <ProfileDetails ensName={selectedNode} />}
+      </Sheet>
+
+      {/* Search Sheet */}
+      <Sheet
+        isOpen={isSearchOpen}
+        onClose={() => {
+          setIsSearchOpen(false);
+          setSearchedProfile(null);
+          setSearchQuery('');
+        }}
+        title="Search Profiles"
+      >
+        <div className="space-y-6">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery.trim()) {
+                const name = searchQuery.trim().toLowerCase().endsWith('.eth') 
+                  ? searchQuery.trim() 
+                  : `${searchQuery.trim()}.eth`;
+                setSearchedProfile(name);
+              }
+            }}
+            className="flex gap-2"
+          >
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="vitalik.eth"
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 placeholder:text-gray-400"
+              autoFocus
+            />
+            <button 
+              type="submit" 
+              disabled={!searchQuery}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+            >
+              Search
+            </button>
+          </form>
+
+          {searchedProfile && (
+            <div className="border-t pt-6">
+              <ProfileDetails ensName={searchedProfile} />
+            </div>
+          )}
+        </div>
       </Sheet>
     </main>
   );
