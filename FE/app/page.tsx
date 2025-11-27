@@ -402,7 +402,7 @@ export default function GraphPage() {
                         Confirm Deletion
                     </h4>
                     <p className="text-xs text-red-600 mb-3 leading-relaxed">
-                        This will permanently remove <strong>{selectedNode}</strong> and all its connections from the graph.
+                        Are you sure you want to delete <strong>{selectedNode}</strong>?
                     </p>
                     <div className="flex gap-2">
                         <button 
