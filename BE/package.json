@@ -4,7 +4,12 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",
-    "format": "prettier --write \"src/**/*.ts\""
+    "dev": "bun --watch src/index.ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "push": "drizzle-kit push",
+    "studio": "drizzle-kit studio"
   },
   "devDependencies": {
     "@types/bun": "latest",
