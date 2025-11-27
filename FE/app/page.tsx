@@ -251,7 +251,7 @@ export default function GraphPage() {
           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-600 text-white font-bold text-lg">
             E
           </div>
-          <h1 className="text-lg font-semibold text-gray-900 tracking-tight">ENS Graph</h1>
+          <h1 className="text-lg font-semibold text-gray-900 tracking-tight">ENS Social Network</h1>
         </div>
         
         {/* Editor Toolbar */}

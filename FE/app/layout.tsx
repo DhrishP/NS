@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "ENS Social Graph",
   description: "Visualize and edit ENS connections",
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({
