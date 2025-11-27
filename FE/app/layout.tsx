@@ -19,7 +19,25 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
         {children}
-        <Toaster position="bottom-center" />
+        <Toaster 
+          position="bottom-center" 
+          richColors 
+          theme="light"
+          closeButton
+          className="font-sans"
+          toastOptions={{
+            style: {
+                borderRadius: '12px',
+                border: '1px solid var(--gray-200)',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+            },
+            classNames: {
+                toast: 'font-sans',
+                title: 'text-sm font-semibold',
+                description: 'text-xs text-gray-500'
+            }
+          }}
+        />
       </body>
     </html>
   );

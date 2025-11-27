@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import EnsGraph, { EnsGraphRef } from '@/components/EnsGraph';
 import { Sheet } from '@/components/ui/Sheet';
 import ProfileDetails from '@/components/ProfileDetails';
-import { Plus, Link as LinkIcon, MousePointer2, Search, Network, Trash2, LayoutDashboard, History } from 'lucide-react';
+import { Plus, Link as LinkIcon, MousePointer2, Search, Network, Trash2, LayoutDashboard, History, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -15,6 +15,7 @@ export default function GraphPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedProfile, setSearchedProfile] = useState<string | null>(null);
   const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const graphRef = useRef<EnsGraphRef>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -181,6 +182,7 @@ export default function GraphPage() {
       })
     }));
     setSelectedNode(null);
+    setShowDeleteConfirm(false);
     toast.success('Node deleted');
   };
 
@@ -214,6 +216,7 @@ export default function GraphPage() {
       }
     } else {
       setSelectedNode(nodeId);
+      setShowDeleteConfirm(false);
       addToRecent(nodeId);
     }
   };
@@ -386,13 +389,39 @@ export default function GraphPage() {
           </div>
           
           <div className="border-t pt-6 mt-6">
-            <button
-              onClick={handleDeleteNode}
-              className="flex items-center justify-center gap-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete Node
-            </button>
+            {!showDeleteConfirm ? (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="flex items-center justify-center gap-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Node
+                </button>
+            ) : (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 animate-in fade-in zoom-in-95 duration-200">
+                    <h4 className="text-sm font-medium text-red-800 flex items-center gap-2 mb-1">
+                        <AlertTriangle className="h-4 w-4"/> 
+                        Confirm Deletion
+                    </h4>
+                    <p className="text-xs text-red-600 mb-3 leading-relaxed">
+                        This will permanently remove <strong>{selectedNode}</strong> and all its connections from the graph.
+                    </p>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={handleDeleteNode} 
+                            className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 transition-colors"
+                        >
+                            Confirm
+                        </button>
+                        <button 
+                            onClick={() => setShowDeleteConfirm(false)} 
+                            className="flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
           </div>
         </div>
       </Sheet>
