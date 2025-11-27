@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import EnsGraph from '@/components/EnsGraph';
 import { Sheet } from '@/components/ui/Sheet';
 import ProfileDetails from '@/components/ProfileDetails';
-import { Plus, Link as LinkIcon, MousePointer2, Search } from 'lucide-react';
+import { Plus, Link as LinkIcon, MousePointer2, Search, Network , Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 export default function GraphPage() {
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -20,13 +21,66 @@ export default function GraphPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  // Initial data load (simulation)
-  if (!initialized && graphData.nodes.length === 0) {
-     // Note: In a real app, we'd fetch this from the DB. 
-     // For now, we start empty or could parse DEFAULT_INPUT if desired.
-     // Let's start empty as it's a "Builder".
-     // setInitialized(true);
-  }
+  const [isSaving, setIsSaving] = useState(false);
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+  // Load Graph
+  useEffect(() => {
+    const loadGraph = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/graph`);
+        if (res.ok) {
+          const data = await res.json();
+          // API returns { success: true, data: { nodes, links } }
+          if (data.data && Array.isArray(data.data.nodes)) {
+            setGraphData({
+              nodes: data.data.nodes,
+              links: data.data.links
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load graph', e);
+        toast.error('Failed to load graph data');
+      } finally {
+        setInitialized(true);
+      }
+    };
+    loadGraph();
+  }, []);
+
+  // Auto-Save
+  useEffect(() => {
+    if (!initialized) return;
+    
+    const saveGraph = async () => {
+      setIsSaving(true);
+      try {
+        // Sanitize links before saving (d3-force converts them to objects, we need strings/IDs if possible, 
+        // but backend handles objects too. Converting to clean structure is safer)
+        const cleanData = {
+          nodes: graphData.nodes.map(n => ({ id: n.id, val: n.val, img: n.img })),
+          links: graphData.links.map(l => ({
+            source: typeof l.source === 'object' ? l.source.id : l.source,
+            target: typeof l.target === 'object' ? l.target.id : l.target
+          }))
+        };
+
+        await fetch(`${BACKEND_URL}/api/graph`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cleanData),
+        });
+      } catch (e) {
+        console.error('Save failed', e);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    const timer = setTimeout(saveGraph, 2000); // 2s debounce
+    return () => clearTimeout(timer);
+  }, [graphData, initialized]);
 
   // Helper to fetch avatar for a new node
   const fetchAvatar = async (name: string) => {
@@ -55,7 +109,7 @@ export default function GraphPage() {
       : `${newNodeName.trim()}.eth`;
 
     if (graphData.nodes.some(n => n.id === name)) {
-      alert('Node already exists!');
+      toast.error('Node already exists!');
       return;
     }
 
@@ -67,7 +121,25 @@ export default function GraphPage() {
       ...prev,
       nodes: [...prev.nodes, { id: name, val: 1, img: avatar }]
     }));
+    toast.success(`Added ${name}`);
     setNewNodeName('');
+  };
+
+  const handleDeleteNode = () => {
+    if (!selectedNode) return;
+    
+    if (confirm(`Are you sure you want to delete ${selectedNode}?`)) {
+      setGraphData(prev => ({
+        nodes: prev.nodes.filter(n => n.id !== selectedNode),
+        links: prev.links.filter(l => {
+            const s = typeof l.source === 'object' ? l.source.id : l.source;
+            const t = typeof l.target === 'object' ? l.target.id : l.target;
+            return s !== selectedNode && t !== selectedNode;
+        })
+      }));
+      setSelectedNode(null);
+      toast.success('Node deleted');
+    }
   };
 
   const handleNodeClick = (nodeId: string) => {
@@ -125,6 +197,10 @@ export default function GraphPage() {
         
         {/* Editor Toolbar */}
         <div className="flex items-center gap-3">
+            <div className="text-xs text-gray-400 w-16 text-right transition-opacity duration-300">
+              {isSaving ? 'Saving...' : 'Saved'}
+            </div>
+
             {/* Add Node Form */}
             <form onSubmit={handleAddNode} className="flex items-center gap-2 relative">
               <div className="relative">
@@ -144,7 +220,7 @@ export default function GraphPage() {
               <button 
                 type="submit" 
                 disabled={isLoading || !newNodeName}
-                className="rounded-lg bg-gray-900 p-2 text-white shadow-sm transition-all hover:bg-gray-800 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg bg-gray-900 p-2 text-white shadow-sm transition-all hover:bg-gray-800 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 title="Add Node"
               >
                 <Plus className="h-5 w-5" />
@@ -161,7 +237,7 @@ export default function GraphPage() {
                   setConnectSource(null);
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
                   !isConnectMode 
                     ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
@@ -176,7 +252,7 @@ export default function GraphPage() {
                   setSelectedNode(null); // Close sheet
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all",
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
                   isConnectMode 
                     ? "bg-white text-blue-600 shadow-sm ring-1 ring-gray-200" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
@@ -191,7 +267,7 @@ export default function GraphPage() {
             
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300"
+              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 cursor-pointer"
             >
               <Search className="h-4 w-4" />
               Profiles
@@ -217,8 +293,11 @@ export default function GraphPage() {
 
           {graphData.nodes.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none">
-              <p className="text-lg font-medium">Canvas is empty</p>
-              <p className="text-sm">Add an ENS name above to start building.</p>
+              <div className="h-24 w-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center mb-4">
+                <Network className="h-10 w-10 text-gray-300" />
+              </div>
+              <p className="text-lg font-medium text-gray-600">Canvas is empty</p>
+              <p className="text-sm text-gray-400 mt-1">Add an ENS name above to start building your network.</p>
             </div>
           )}
         </section>
@@ -229,7 +308,21 @@ export default function GraphPage() {
         onClose={() => setSelectedNode(null)}
         title="ENS Profile"
       >
-        {selectedNode && <ProfileDetails ensName={selectedNode} />}
+        <div className="flex flex-col h-full">
+          <div className="flex-1">
+            {selectedNode && <ProfileDetails ensName={selectedNode} />}
+          </div>
+          
+          <div className="border-t pt-6 mt-6">
+            <button
+              onClick={handleDeleteNode}
+              className="flex items-center justify-center gap-2 w-full rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 hover:border-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 cursor-pointer"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Node
+            </button>
+          </div>
+        </div>
       </Sheet>
 
       {/* Search Sheet */}
@@ -266,7 +359,7 @@ export default function GraphPage() {
             <button 
               type="submit" 
               disabled={!searchQuery}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               Search
             </button>
@@ -279,6 +372,6 @@ export default function GraphPage() {
           )}
         </div>
       </Sheet>
-    </main>
+      </main>
   );
 }

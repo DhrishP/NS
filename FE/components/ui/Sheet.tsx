@@ -59,7 +59,7 @@ export function Sheet({ isOpen, onClose, children, title, className }: SheetProp
           <h2 className="text-lg font-semibold text-gray-900">{title || 'Details'}</h2>
           <button
             onClick={onClose}
-            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
           >
             <X className="h-5 w-5" />
             <span className="sr-only">Close</span>
