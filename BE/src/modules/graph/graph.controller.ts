@@ -3,6 +3,7 @@ import { BaseController } from '../base/BaseController';
 import { db } from '../../config/db';
 import { nodes, links } from '../../models/schema';
 import { log } from '../../utils/logger';
+import { notInArray } from 'drizzle-orm';
 
 export class GraphController extends BaseController {
   public async getGraph(req: Request, res: Response) {
@@ -25,14 +26,22 @@ export class GraphController extends BaseController {
       const { nodes: newNodes, links: newLinks } = req.body;
 
       await db.transaction(async (tx) => {
-        // 1. Upsert Nodes
-        if (newNodes && newNodes.length > 0) {
+        // 1. Sync Nodes (Delete missing + Upsert)
+        if (!newNodes || newNodes.length === 0) {
+          await tx.delete(links); // Clear links first
+          await tx.delete(nodes); // Clear all nodes
+        } else {
+          // Delete nodes not in the new list
+          const keepIds = newNodes.map((n: any) => n.id);
+          await tx.delete(nodes).where(notInArray(nodes.id, keepIds));
+          
+          // Upsert current nodes
           await tx.insert(nodes)
             .values(newNodes.map((n: any) => ({ id: n.id, data: { img: n.img } })))
             .onConflictDoNothing();
         }
 
-        // 2. Sync Links (Delete All + Insert)
+
         await tx.delete(links);
         
         if (newLinks && newLinks.length > 0) {

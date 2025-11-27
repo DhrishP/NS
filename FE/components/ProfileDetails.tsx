@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { getEnsProfile } from '@/lib/ens';
+import { useEffect, useState } from "react";
+import { getEnsProfile } from "@/lib/ens";
 
 interface ProfileDetailsProps {
   ensName: string;
@@ -14,12 +14,12 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
 
   useEffect(() => {
     let mounted = true;
-    
+
     async function fetchProfile() {
       if (!ensName) return;
       setLoading(true);
       setError(false);
-      
+
       try {
         const data = await getEnsProfile(ensName);
         if (mounted) {
@@ -37,7 +37,9 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
     }
 
     fetchProfile();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [ensName]);
 
   if (loading) {
@@ -94,11 +96,16 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
           // Cast value to string for safety
           const displayValue = String(value);
           return (
-            <div key={key} className="flex items-center justify-between rounded-md border p-3 text-sm">
-              <span className="font-medium text-gray-500 capitalize">{key}</span>
-              <a 
-                href={getLink(key, displayValue)} 
-                target="_blank" 
+            <div
+              key={key}
+              className="flex items-center justify-between rounded-md border p-3 text-sm"
+            >
+              <span className="font-medium text-gray-500 capitalize">
+                {key}
+              </span>
+              <a
+                href={getLink(key, displayValue)}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-blue-600 hover:underline truncate max-w-[200px]"
               >
@@ -107,8 +114,10 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
             </div>
           );
         })}
-        {Object.values(profile.socials).every(v => !v) && (
-            <p className="text-sm text-gray-400 italic">No connected accounts found.</p>
+        {Object.values(profile.socials).every((v) => !v) && (
+          <p className="text-sm text-gray-400 italic">
+            No connected accounts found.
+          </p>
         )}
       </div>
     </div>
@@ -116,10 +125,12 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
 }
 
 function getLink(key: string, value: string): string {
-  if (key === 'twitter' || key === 'com.twitter') return `https://twitter.com/${value}`;
-  if (key === 'github' || key === 'com.github') return `https://github.com/${value}`;
-  if (key === 'url') return value.startsWith('http') ? value : `https://${value}`;
-  if (key === 'email') return `mailto:${value}`;
-  return '#';
+  if (key === "twitter" || key === "com.twitter")
+    return `https://twitter.com/${value}`;
+  if (key === "github" || key === "com.github")
+    return `https://github.com/${value}`;
+  if (key === "url")
+    return value.startsWith("http") ? value : `https://${value}`;
+  if (key === "email") return `mailto:${value}`;
+  return "#";
 }
-

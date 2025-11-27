@@ -1,20 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import EnsGraph from '@/components/EnsGraph';
+import { useState, useEffect, useRef } from 'react';
+import EnsGraph, { EnsGraphRef } from '@/components/EnsGraph';
 import { Sheet } from '@/components/ui/Sheet';
 import ProfileDetails from '@/components/ProfileDetails';
-import { Plus, Link as LinkIcon, MousePointer2, Search, Network , Trash2 } from 'lucide-react';
+import { Plus, Link as LinkIcon, MousePointer2, Search, Network, Trash2, LayoutDashboard, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+
 export default function GraphPage() {
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedProfile, setSearchedProfile] = useState<string | null>(null);
+  const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
   
-  // Editor State
+  const graphRef = useRef<EnsGraphRef>(null);
+  
   const [newNodeName, setNewNodeName] = useState('');
   const [isConnectMode, setIsConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState<string | null>(null);
@@ -31,7 +34,6 @@ export default function GraphPage() {
         const res = await fetch(`${BACKEND_URL}/api/graph`);
         if (res.ok) {
           const data = await res.json();
-          // API returns { success: true, data: { nodes, links } }
           if (data.data && Array.isArray(data.data.nodes)) {
             setGraphData({
               nodes: data.data.nodes,
@@ -56,8 +58,6 @@ export default function GraphPage() {
     const saveGraph = async () => {
       setIsSaving(true);
       try {
-        // Sanitize links before saving (d3-force converts them to objects, we need strings/IDs if possible, 
-        // but backend handles objects too. Converting to clean structure is safer)
         const cleanData = {
           nodes: graphData.nodes.map(n => ({ id: n.id, val: n.val, img: n.img })),
           links: graphData.links.map(l => ({
@@ -78,11 +78,11 @@ export default function GraphPage() {
       }
     };
 
-    const timer = setTimeout(saveGraph, 2000); // 2s debounce
+    const timer = setTimeout(saveGraph, 2000); 
     return () => clearTimeout(timer);
   }, [graphData, initialized]);
 
-  // Helper to fetch avatar for a new node
+  // Helpers
   const fetchAvatar = async (name: string) => {
     try {
       const response = await fetch('/api/ens/batch', {
@@ -100,16 +100,31 @@ export default function GraphPage() {
     return undefined;
   };
 
-  const handleAddNode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newNodeName.trim()) return;
-    
-    const name = newNodeName.trim().toLowerCase().endsWith('.eth') 
-      ? newNodeName.trim() 
-      : `${newNodeName.trim()}.eth`;
+  const addToRecent = (name: string) => {
+    setRecentProfiles(prev => {
+      const newSet = new Set([name, ...prev]);
+      return Array.from(newSet).slice(0, 5);
+    });
+  };
+
+  const handleCenterGraph = () => {
+    graphRef.current?.zoomToFit(1000, 50);
+    toast.success('Graph centered');
+  };
+
+  const addNode = async (rawName: string) => {
+    if (!rawName.trim()) return;
+    const name = rawName.trim().toLowerCase().endsWith('.eth') 
+      ? rawName.trim() 
+      : `${rawName.trim()}.eth`;
 
     if (graphData.nodes.some(n => n.id === name)) {
       toast.error('Node already exists!');
+      // Zoom to it if exists
+      const existing = graphData.nodes.find(n => n.id === name);
+      if (existing && typeof existing.x === 'number') {
+        graphRef.current?.centerAt(existing.x, existing.y, 1000);
+      }
       return;
     }
 
@@ -122,65 +137,83 @@ export default function GraphPage() {
       nodes: [...prev.nodes, { id: name, val: 1, img: avatar }]
     }));
     toast.success(`Added ${name}`);
+    addToRecent(name);
+  };
+
+  const handleAddNodeForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    addNode(newNodeName);
     setNewNodeName('');
   };
 
   const handleDeleteNode = () => {
     if (!selectedNode) return;
     
-    if (confirm(`Are you sure you want to delete ${selectedNode}?`)) {
-      setGraphData(prev => ({
-        nodes: prev.nodes.filter(n => n.id !== selectedNode),
-        links: prev.links.filter(l => {
-            const s = typeof l.source === 'object' ? l.source.id : l.source;
-            const t = typeof l.target === 'object' ? l.target.id : l.target;
-            return s !== selectedNode && t !== selectedNode;
-        })
-      }));
-      setSelectedNode(null);
-      toast.success('Node deleted');
-    }
+    setGraphData(prev => ({
+      nodes: prev.nodes.filter(n => n.id !== selectedNode),
+      links: prev.links.filter(l => {
+          const s = typeof l.source === 'object' ? l.source.id : l.source;
+          const t = typeof l.target === 'object' ? l.target.id : l.target;
+          return s !== selectedNode && t !== selectedNode;
+      })
+    }));
+    setSelectedNode(null);
+    toast.success('Node deleted');
   };
 
   const handleNodeClick = (nodeId: string) => {
     if (isConnectMode) {
       if (!connectSource) {
-        // Select Source
         setConnectSource(nodeId);
       } else {
-        // Connect or Disconnect!
         if (connectSource === nodeId) {
-          setConnectSource(null); // Deselect self
+          setConnectSource(null);
           return;
         }
-
-        // Robust connection check
         const isConnected = (l: any) => {
             const s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
             const t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
             return (s === connectSource && t === nodeId) || (s === nodeId && t === connectSource);
         };
-
         const exists = graphData.links.some(isConnected);
-
         if (exists) {
-            // Disconnect (Remove Link) - using filter for cleaner update
             setGraphData(prev => ({
                 ...prev,
                 links: prev.links.filter(l => !isConnected(l))
             }));
         } else {
-            // Connect (Add Link)
             setGraphData(prev => ({
                 ...prev,
                 links: [...prev.links, { source: connectSource, target: nodeId }]
             }));
         }
-        setConnectSource(null); // Reset cycle
+        setConnectSource(null);
       }
     } else {
-      // View Details
       setSelectedNode(nodeId);
+      addToRecent(nodeId);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      const name = searchQuery.trim().toLowerCase().endsWith('.eth') 
+        ? searchQuery.trim() 
+        : `${searchQuery.trim()}.eth`;
+      
+      const existingNode = graphData.nodes.find(n => n.id === name);
+      
+      if (existingNode && typeof existingNode.x === 'number') {
+          graphRef.current?.centerAt(existingNode.x, existingNode.y, 1000);
+          toast.success(`Located ${name}`);
+          setIsSearchOpen(false);
+          setSearchQuery('');
+          return;
+      }
+
+      setSearchedProfile(name);
+      addToRecent(name);
     }
   };
 
@@ -202,7 +235,7 @@ export default function GraphPage() {
             </div>
 
             {/* Add Node Form */}
-            <form onSubmit={handleAddNode} className="flex items-center gap-2 relative">
+            <form onSubmit={handleAddNodeForm} className="flex items-center gap-2 relative">
               <div className="relative">
                 <input 
                   type="text" 
@@ -249,7 +282,7 @@ export default function GraphPage() {
               <button
                 onClick={() => {
                   setIsConnectMode(true);
-                  setSelectedNode(null); // Close sheet
+                  setSelectedNode(null);
                 }}
                 className={cn(
                   "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
@@ -276,15 +309,24 @@ export default function GraphPage() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Main Area: Graph */}
         <section className="flex-1 relative bg-gray-100">
           <EnsGraph 
+            ref={graphRef}
             data={graphData} 
             onNodeSelect={handleNodeClick} 
             highlightNode={connectSource}
           />
           
-          {/* Hint Toast */}
+          <div className="absolute bottom-6 right-6 flex flex-col gap-2">
+             <button
+                onClick={handleCenterGraph}
+                className="bg-white p-3 rounded-xl shadow-lg border border-gray-100 hover:bg-gray-50 hover:shadow-xl text-gray-700 transition-all cursor-pointer"
+                title="Center Graph"
+             >
+                <LayoutDashboard className="h-5 w-5" />
+             </button>
+          </div>
+
           {isConnectMode && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/75 px-4 py-2 text-sm text-white backdrop-blur-sm">
               {connectSource ? `Select target to connect (or disconnect) from ${connectSource}` : 'Select a source node'}
@@ -325,7 +367,6 @@ export default function GraphPage() {
         </div>
       </Sheet>
 
-      {/* Search Sheet */}
       <Sheet
         isOpen={isSearchOpen}
         onClose={() => {
@@ -336,18 +377,7 @@ export default function GraphPage() {
         title="Search Profiles"
       >
         <div className="space-y-6">
-          <form 
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (searchQuery.trim()) {
-                const name = searchQuery.trim().toLowerCase().endsWith('.eth') 
-                  ? searchQuery.trim() 
-                  : `${searchQuery.trim()}.eth`;
-                setSearchedProfile(name);
-              }
-            }}
-            className="flex gap-2"
-          >
+          <form onSubmit={handleSearch} className="flex gap-2">
             <input 
               type="text" 
               value={searchQuery}
@@ -364,10 +394,44 @@ export default function GraphPage() {
               Search
             </button>
           </form>
+          
+          {!searchedProfile && recentProfiles.length > 0 && (
+             <div className="pt-2">
+                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <History className="h-3 w-3" /> Recent
+                 </h3>
+                 <div className="space-y-1">
+                    {recentProfiles.map(name => (
+                        <button
+                            key={name}
+                            onClick={() => {
+                                setSearchedProfile(name);
+                            }}
+                            className="block w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 text-sm text-gray-700 transition-colors cursor-pointer border border-transparent hover:border-gray-100"
+                        >
+                            {name}
+                        </button>
+                    ))}
+                 </div>
+             </div>
+         )}
 
           {searchedProfile && (
             <div className="border-t pt-6">
               <ProfileDetails ensName={searchedProfile} />
+              
+              {!graphData.nodes.some(n => n.id === searchedProfile) && (
+                <button 
+                    onClick={() => {
+                        addNode(searchedProfile);
+                        setIsSearchOpen(false); 
+                    }}
+                    className="mt-6 flex items-center justify-center gap-2 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-600 transition-colors hover:bg-blue-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
+                >
+                    <Plus className="h-4 w-4" />
+                    Add to Graph
+                </button>
+              )}
             </div>
           )}
         </div>
