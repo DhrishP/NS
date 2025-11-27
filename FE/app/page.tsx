@@ -14,7 +14,6 @@ export default function GraphPage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchedProfile, setSearchedProfile] = useState<string | null>(null);
-  const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const graphRef = useRef<EnsGraphRef>(null);
@@ -125,13 +124,6 @@ export default function GraphPage() {
     return undefined;
   };
 
-  const addToRecent = (name: string) => {
-    setRecentProfiles(prev => {
-      const newSet = new Set([name, ...prev]);
-      return Array.from(newSet).slice(0, 5);
-    });
-  };
-
   const handleCenterGraph = () => {
     graphRef.current?.zoomToFit(1000, 50);
     toast.success('Graph centered');
@@ -161,7 +153,6 @@ export default function GraphPage() {
       nodes: [...prev.nodes, { id: name, val: 1, img: avatar }]
     }));
     toast.success(`Added ${name}`);
-    addToRecent(name);
   };
 
   const handleAddNodeForm = (e: React.FormEvent) => {
@@ -217,7 +208,6 @@ export default function GraphPage() {
     } else {
       setSelectedNode(nodeId);
       setShowDeleteConfirm(false);
-      addToRecent(nodeId);
     }
   };
 
@@ -239,7 +229,6 @@ export default function GraphPage() {
       }
 
       setSearchedProfile(name);
-      addToRecent(name);
     }
   };
 
@@ -452,27 +441,6 @@ export default function GraphPage() {
             </button>
           </form>
           
-          {!searchedProfile && recentProfiles.length > 0 && (
-             <div className="pt-2">
-                 <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <History className="h-3 w-3" /> Recent
-                 </h3>
-                 <div className="space-y-1">
-                    {recentProfiles.map(name => (
-                        <button
-                            key={name}
-                            onClick={() => {
-                                setSearchedProfile(name);
-                            }}
-                            className="block w-full text-left px-3 py-2 rounded-md hover:bg-gray-50 text-sm text-gray-700 transition-colors cursor-pointer border border-transparent hover:border-gray-100"
-                        >
-                            {name}
-                        </button>
-                    ))}
-                 </div>
-             </div>
-         )}
-
           {searchedProfile && (
             <div className="border-t pt-6">
               <ProfileDetails ensName={searchedProfile} />
