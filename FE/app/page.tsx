@@ -247,10 +247,8 @@ export default function GraphPage() {
     <main className="flex h-screen flex-col bg-gray-50 font-sans">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-200 bg-white/80 backdrop-blur-md px-6 py-4 shadow-sm z-10 sticky top-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-600 text-white font-bold text-lg">
-            E
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/icon.svg" alt="ENS Social Graph Logo" className="h-8 w-8" />
           <h1 className="text-lg font-semibold text-gray-900 tracking-tight">ENS Social Network</h1>
         </div>
         
