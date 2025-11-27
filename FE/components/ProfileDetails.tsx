@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getEnsProfile } from "@/lib/ens";
+import { Twitter, Github, Globe, Mail, ExternalLink } from "lucide-react";
 
 interface ProfileDetailsProps {
   ensName: string;
@@ -44,8 +45,17 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+      <div className="space-y-6 animate-pulse">
+        <div className="flex flex-col items-center">
+           <div className="h-32 w-32 rounded-full bg-gray-200 mb-4"></div>
+           <div className="h-8 w-48 bg-gray-200 rounded mb-2"></div>
+           <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div className="h-20 w-full bg-gray-200 rounded-lg"></div>
+        <div className="space-y-3">
+            <div className="h-10 w-full bg-gray-200 rounded"></div>
+            <div className="h-10 w-full bg-gray-200 rounded"></div>
+        </div>
       </div>
     );
   }
@@ -76,7 +86,16 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
           )}
         </div>
         <h2 className="text-2xl font-bold text-gray-900">{profile.ensName}</h2>
-        <p className="font-mono text-xs text-gray-500">{profile.address}</p>
+        
+        <a 
+            href={`https://etherscan.io/address/${profile.address}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-mono text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 mt-1 transition-colors"
+        >
+            {profile.address.slice(0,6)}...{profile.address.slice(-4)}
+            <ExternalLink className="h-3 w-3" />
+        </a>
       </div>
 
       {/* Description */}
@@ -88,28 +107,33 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
 
       {/* Socials */}
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
           Connected Accounts
         </h3>
         {Object.entries(profile.socials).map(([key, value]) => {
           if (!value) return null;
-          // Cast value to string for safety
           const displayValue = String(value);
+          const icon = getIcon(key);
+
           return (
             <div
               key={key}
-              className="flex items-center justify-between rounded-md border p-3 text-sm"
+              className="flex items-center justify-between rounded-lg border border-gray-100 p-3 text-sm hover:border-gray-300 transition-colors bg-white shadow-sm group"
             >
-              <span className="font-medium text-gray-500 capitalize">
-                {key}
-              </span>
+              <div className="flex items-center gap-3 text-gray-600">
+                 {icon}
+                 <span className="font-medium capitalize">
+                    {key.replace('com.', '')}
+                 </span>
+              </div>
               <a
                 href={getLink(key, displayValue)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium text-blue-600 hover:underline truncate max-w-[200px]"
+                className="font-medium text-blue-600 hover:underline truncate max-w-[150px] flex items-center gap-1"
               >
                 {displayValue}
+                <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
             </div>
           );
@@ -122,6 +146,13 @@ export default function ProfileDetails({ ensName }: ProfileDetailsProps) {
       </div>
     </div>
   );
+}
+
+function getIcon(key: string) {
+    if (key.includes("twitter")) return <Twitter className="h-4 w-4 text-blue-400" />;
+    if (key.includes("github")) return <Github className="h-4 w-4 text-gray-900" />;
+    if (key.includes("email")) return <Mail className="h-4 w-4 text-gray-500" />;
+    return <Globe className="h-4 w-4 text-gray-500" />;
 }
 
 function getLink(key: string, value: string): string {

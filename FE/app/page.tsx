@@ -17,6 +17,7 @@ export default function GraphPage() {
   const [recentProfiles, setRecentProfiles] = useState<string[]>([]);
   
   const graphRef = useRef<EnsGraphRef>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   
   const [newNodeName, setNewNodeName] = useState('');
   const [isConnectMode, setIsConnectMode] = useState(false);
@@ -82,6 +83,29 @@ export default function GraphPage() {
     return () => clearTimeout(timer);
   }, [graphData, initialized]);
 
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+        if (e.key === '/' || (e.key === 'k' && e.metaKey)) {
+            e.preventDefault();
+            inputRef.current?.focus();
+        } else if (e.key.toLowerCase() === 'c') {
+            setIsConnectMode(prev => !prev);
+            setSelectedNode(null);
+        } else if (e.key.toLowerCase() === 'i') {
+            setIsConnectMode(false);
+            setConnectSource(null);
+        } else if (e.key.toLowerCase() === 'p') {
+            setIsSearchOpen(true);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Helpers
   const fetchAvatar = async (name: string) => {
     try {
@@ -120,7 +144,6 @@ export default function GraphPage() {
 
     if (graphData.nodes.some(n => n.id === name)) {
       toast.error('Node already exists!');
-      // Zoom to it if exists
       const existing = graphData.nodes.find(n => n.id === name);
       if (existing && typeof existing.x === 'number') {
         graphRef.current?.centerAt(existing.x, existing.y, 1000);
@@ -238,10 +261,11 @@ export default function GraphPage() {
             <form onSubmit={handleAddNodeForm} className="flex items-center gap-2 relative">
               <div className="relative">
                 <input 
+                  ref={inputRef}
                   type="text" 
                   value={newNodeName}
                   onChange={e => setNewNodeName(e.target.value)}
-                  placeholder="vitalik.eth"
+                  placeholder="vitalik.eth (Press /)"
                   className="w-64 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 border-0 ring-1 ring-gray-200 px-4 py-2 text-sm shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
                 {isLoading && (
@@ -270,14 +294,16 @@ export default function GraphPage() {
                   setConnectSource(null);
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer group",
                   !isConnectMode 
                     ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
                 )}
+                title="Inspect Mode (I)"
               >
                 <MousePointer2 className="h-4 w-4" />
                 Inspect
+                <kbd className={cn("ml-1 hidden lg:inline-block min-h-[20px] px-1 rounded border text-[10px] font-sans", !isConnectMode ? "bg-gray-100 border-gray-200 text-gray-500" : "bg-white border-gray-200 text-gray-400")}>I</kbd>
               </button>
               <button
                 onClick={() => {
@@ -285,14 +311,16 @@ export default function GraphPage() {
                   setSelectedNode(null);
                 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer",
+                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer group",
                   isConnectMode 
                     ? "bg-white text-blue-600 shadow-sm ring-1 ring-gray-200" 
                     : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
                 )}
+                title="Connect Mode (C)"
               >
                 <LinkIcon className="h-4 w-4" />
                 Connect
+                <kbd className={cn("ml-1 hidden lg:inline-block min-h-[20px] px-1 rounded border text-[10px] font-sans", isConnectMode ? "bg-gray-100 border-gray-200 text-blue-500" : "bg-white border-gray-200 text-gray-400")}>C</kbd>
               </button>
             </div>
 
@@ -300,10 +328,12 @@ export default function GraphPage() {
             
             <button 
               onClick={() => setIsSearchOpen(true)}
-              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 cursor-pointer"
+              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 cursor-pointer group"
+              title="Profiles (P)"
             >
               <Search className="h-4 w-4" />
               Profiles
+              <kbd className="ml-1 hidden lg:inline-block min-h-[20px] px-1 rounded border bg-white text-[10px] font-sans border-gray-200 text-gray-400">P</kbd>
             </button>
         </div>
       </header>
