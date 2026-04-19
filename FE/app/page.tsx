@@ -37,8 +37,8 @@ export default function GraphPage() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/ledger`);
       if (res.ok) {
-        const data = await res.json();
-        setLedgerTransactions(data.transactions || []);
+        const result = await res.json();
+        setLedgerTransactions(result.data?.transactions || []);
       }
     } catch (e) {
       console.error('Failed to load ledger', e);
