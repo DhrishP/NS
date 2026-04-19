@@ -1,9 +1,9 @@
 import { type Request, type Response } from 'express';
 import { BaseController } from '../base/BaseController';
 import { db } from '../../config/db';
-import { nodes, links } from '../../models/schema';
+import { nodes, links, transactions } from '../../models/schema';
 import { log } from '../../utils/logger';
-import { notInArray } from 'drizzle-orm';
+import { notInArray, desc } from 'drizzle-orm';
 
 export class GraphController extends BaseController {
   public async getGraph(req: Request, res: Response) {
@@ -17,6 +17,52 @@ export class GraphController extends BaseController {
       });
     } catch (error) {
       log('error', req.requestId, 'Failed to fetch graph', { error });
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  public async getLedger(req: Request, res: Response) {
+    try {
+      const allTransactions = await db.select()
+        .from(transactions)
+        .orderBy(desc(transactions.createdAt));
+
+      return this.ok(res, { transactions: allTransactions });
+    } catch (error) {
+      log('error', req.requestId, 'Failed to fetch ledger', { error });
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  public async recordTransaction(req: Request, res: Response) {
+    try {
+      const { from, to, amount } = req.body;
+
+      if (!from || !to || !amount) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      await db.transaction(async (tx) => {
+        // 1. Record the transaction
+        const dummyHash = `0x${Math.random().toString(16).slice(2, 10)}${Math.random().toString(16).slice(2, 10)}`;
+        await tx.insert(transactions).values({
+          from,
+          to,
+          amount,
+          hash: dummyHash,
+        });
+
+        // 2. Ensure a link exists 
+        await tx.insert(links).values({
+          source: from,
+          target: to,
+        }).onConflictDoNothing();
+      });
+
+      log('info', req.requestId, 'Transaction recorded', { from, to, amount });
+      return this.ok(res, { success: true });
+    } catch (error) {
+      log('error', req.requestId, 'Failed to record transaction', { error });
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }

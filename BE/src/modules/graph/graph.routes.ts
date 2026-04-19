@@ -7,6 +7,8 @@ export class GraphRoute extends BaseRoute {
     
     this.router.get('/graph', (req, res) => controller.getGraph(req, res));
     this.router.post('/graph', (req, res) => controller.saveGraph(req, res));
+    this.router.get('/ledger', (req, res) => controller.getLedger(req, res));
+    this.router.post('/transactions', (req, res) => controller.recordTransaction(req, res));
   }
 }
 
