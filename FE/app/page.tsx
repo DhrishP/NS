@@ -4,9 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import EnsGraph, { EnsGraphRef } from '@/components/EnsGraph';
 import { Sheet } from '@/components/ui/Sheet';
 import ProfileDetails from '@/components/ProfileDetails';
-import { Plus, Link as LinkIcon, MousePointer2, Search, Network, Trash2, LayoutDashboard, History, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Network, Trash2, LayoutDashboard, History, AlertTriangle, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { TransactionModal } from '@/components/ui/TransactionModal';
+import Ledger from '@/components/Ledger';
 
 export default function GraphPage() {
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
@@ -20,17 +22,35 @@ export default function GraphPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   
   const [newNodeName, setNewNodeName] = useState('');
-  const [isConnectMode, setIsConnectMode] = useState(false);
-  const [connectSource, setConnectSource] = useState<string | null>(null);
+  const [isTransactionOpen, setIsTransactionOpen] = useState(false);
+  const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [ledgerTransactions, setLedgerTransactions] = useState<any[]>([]);
+  const [isLedgerLoading, setIsLedgerLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
-  // Load Graph
+  const loadLedger = async () => {
+    setIsLedgerLoading(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/ledger`);
+      if (res.ok) {
+        const data = await res.json();
+        setLedgerTransactions(data.transactions || []);
+      }
+    } catch (e) {
+      console.error('Failed to load ledger', e);
+    } finally {
+      setIsLedgerLoading(false);
+    }
+  };
+
+  // Initial Load
   useEffect(() => {
-    const loadGraph = async () => {
+    const loadData = async () => {
+      // 1. Load Graph
       try {
         const res = await fetch(`${BACKEND_URL}/api/graph`);
         if (res.ok) {
@@ -45,11 +65,14 @@ export default function GraphPage() {
       } catch (e) {
         console.error('Failed to load graph', e);
         toast.error('Failed to load graph data');
-      } finally {
-        setInitialized(true);
       }
+
+      // 2. Load Ledger
+      await loadLedger();
+      
+      setInitialized(true);
     };
-    loadGraph();
+    loadData();
   }, []);
 
   // Auto-Save
@@ -91,12 +114,6 @@ export default function GraphPage() {
         if (e.key === '/' || (e.key === 'k' && e.metaKey)) {
             e.preventDefault();
             inputRef.current?.focus();
-        } else if (e.key.toLowerCase() === 'c') {
-            setIsConnectMode(prev => !prev);
-            setSelectedNode(null);
-        } else if (e.key.toLowerCase() === 'i') {
-            setIsConnectMode(false);
-            setConnectSource(null);
         } else if (e.key.toLowerCase() === 'p') {
             setIsSearchOpen(true);
         }
@@ -178,36 +195,42 @@ export default function GraphPage() {
   };
 
   const handleNodeClick = (nodeId: string) => {
-    if (isConnectMode) {
-      if (!connectSource) {
-        setConnectSource(nodeId);
-      } else {
-        if (connectSource === nodeId) {
-          setConnectSource(null);
-          return;
-        }
-        const isConnected = (l: any) => {
-            const s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
-            const t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
-            return (s === connectSource && t === nodeId) || (s === nodeId && t === connectSource);
-        };
-        const exists = graphData.links.some(isConnected);
-        if (exists) {
-            setGraphData(prev => ({
-                ...prev,
-                links: prev.links.filter(l => !isConnected(l))
-            }));
-        } else {
-            setGraphData(prev => ({
-                ...prev,
-                links: [...prev.links, { source: connectSource, target: nodeId }]
-            }));
-        }
-        setConnectSource(null);
+    setSelectedNode(nodeId);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleConfirmTransaction = async (sourceId: string, targetId: string, amount: string) => {
+    try {
+      // 1. Persist to database ledger
+      const res = await fetch(`${BACKEND_URL}/api/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: sourceId, to: targetId, amount }) 
+      });
+
+      if (!res.ok) throw new Error('Failed to record transaction');
+
+      // 2. Update local state
+      const isConnected = (l: any) => {
+          const s = (l.source && typeof l.source === 'object') ? l.source.id : l.source;
+          const t = (l.target && typeof l.target === 'object') ? l.target.id : l.target;
+          return (s === sourceId && t === targetId) || (s === targetId && t === sourceId);
+      };
+      
+      if (!graphData.links.some(isConnected)) {
+        setGraphData(prev => ({
+            ...prev,
+            links: [...prev.links, { source: sourceId, target: targetId }]
+        }));
       }
-    } else {
-      setSelectedNode(nodeId);
-      setShowDeleteConfirm(false);
+
+      // 3. Refresh ledger
+      await loadLedger();
+
+      toast.success(`Transaction sent! Connection established.`, { icon: '🔗' });
+    } catch (e) {
+      console.error(e);
+      toast.error('Transaction failed to record on ledger.');
     }
   };
 
@@ -276,45 +299,27 @@ export default function GraphPage() {
 
             <div className="h-6 w-px bg-gray-200 mx-2"></div>
 
-            {/* Mode Toggle */}
-            <div className="flex items-center rounded-lg bg-gray-100 p-1 ring-1 ring-gray-200">
-              <button
-                onClick={() => {
-                  setIsConnectMode(false);
-                  setConnectSource(null);
-                }}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer group",
-                  !isConnectMode 
-                    ? "bg-white text-gray-900 shadow-sm ring-1 ring-gray-200" 
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                )}
-                title="Inspect Mode (I)"
-              >
-                <MousePointer2 className="h-4 w-4" />
-                Inspect
-                <kbd className={cn("ml-1 hidden lg:inline-block min-h-[20px] px-1 rounded border text-[10px] font-sans", !isConnectMode ? "bg-gray-100 border-gray-200 text-gray-500" : "bg-white border-gray-200 text-gray-400")}>I</kbd>
-              </button>
-              <button
-                onClick={() => {
-                  setIsConnectMode(true);
-                  setSelectedNode(null);
-                }}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all cursor-pointer group",
-                  isConnectMode 
-                    ? "bg-white text-blue-600 shadow-sm ring-1 ring-gray-200" 
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
-                )}
-                title="Connect Mode (C)"
-              >
-                <LinkIcon className="h-4 w-4" />
-                Connect
-                <kbd className={cn("ml-1 hidden lg:inline-block min-h-[20px] px-1 rounded border text-[10px] font-sans", isConnectMode ? "bg-gray-100 border-gray-200 text-blue-500" : "bg-white border-gray-200 text-gray-400")}>C</kbd>
-              </button>
-            </div>
+            {/* New Transaction Button */}
+            <button
+              onClick={() => setIsTransactionOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-500 cursor-pointer"
+              title="New Transaction"
+            >
+              <Send className="h-4 w-4" />
+              New Transaction
+            </button>
 
-            <div className="h-6 w-px bg-gray-200 mx-2"></div>
+            <div className="h-6 w-px bg-gray-200 mx-1"></div>
+
+            {/* History Toggle */}
+            <button 
+              onClick={() => setIsLedgerOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:text-gray-900 cursor-pointer"
+              title="History (H)"
+            >
+              <History className="h-4 w-4" />
+              History
+            </button>
             
             <button 
               onClick={() => setIsSearchOpen(true)}
@@ -334,7 +339,6 @@ export default function GraphPage() {
             ref={graphRef}
             data={graphData} 
             onNodeSelect={handleNodeClick} 
-            highlightNode={connectSource}
           />
           
           <div className="absolute bottom-6 right-6 flex flex-col gap-2">
@@ -347,9 +351,9 @@ export default function GraphPage() {
              </button>
           </div>
 
-          {isConnectMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-black/75 px-4 py-2 text-sm text-white backdrop-blur-sm">
-              {connectSource ? `Select target to connect (or disconnect) from ${connectSource}` : 'Select a source node'}
+          {isTransactionOpen && graphData.nodes.length < 2 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-full bg-orange-500/90 px-4 py-2 text-sm text-white backdrop-blur-sm shadow-md">
+              Add at least 2 nodes to simulate a transaction.
             </div>
           )}
 
@@ -461,6 +465,21 @@ export default function GraphPage() {
           )}
         </div>
       </Sheet>
+
+      <Sheet
+        isOpen={isLedgerOpen}
+        onClose={() => setIsLedgerOpen(false)}
+        title="Transaction Ledger"
+      >
+        <Ledger transactions={ledgerTransactions} isLoading={isLedgerLoading} />
+      </Sheet>
+
+      <TransactionModal
+        isOpen={isTransactionOpen}
+        onClose={() => setIsTransactionOpen(false)}
+        onConfirm={handleConfirmTransaction}
+        nodes={graphData.nodes}
+      />
       </main>
   );
 }
