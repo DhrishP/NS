@@ -12,4 +12,11 @@ export const links = pgTable('links', {
   target: text('target').references(() => nodes.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').defaultNow(),
 });
-
+export const transactions = pgTable('transactions', {
+  id: serial('id').primaryKey(),
+  from: text('from').references(() => nodes.id, { onDelete: 'cascade' }),
+  to: text('to').references(() => nodes.id, { onDelete: 'cascade' }),
+  amount: text('amount'),
+  hash: text('hash'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
