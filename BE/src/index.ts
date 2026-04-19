@@ -22,6 +22,11 @@ const graphRoute = new GraphRoute();
 app.use("/api", healthRoute.router);
 app.use("/api", graphRoute.router);
 
+// Add a root route so hitting the base URL doesn't return 404
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "Success", service: "ENS Graph API" });
+});
+
 export default app;
 
 if (process.env.NODE_ENV !== 'production') {
