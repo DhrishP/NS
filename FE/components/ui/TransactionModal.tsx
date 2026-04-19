@@ -67,7 +67,7 @@ export function TransactionModal({ isOpen, onClose, onConfirm, nodes }: Transact
               value={sourceId}
               onChange={(e) => setSourceId(e.target.value)}
               disabled={isProcessing}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
             >
               <option value="" disabled>Select Sender...</option>
               {nodes.map(n => (
@@ -88,7 +88,7 @@ export function TransactionModal({ isOpen, onClose, onConfirm, nodes }: Transact
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
               disabled={isProcessing}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
             >
               <option value="" disabled>Select Recipient...</option>
               {nodes.map(n => (
@@ -107,7 +107,7 @@ export function TransactionModal({ isOpen, onClose, onConfirm, nodes }: Transact
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               disabled={isProcessing}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:opacity-75"
             />
           </div>
 

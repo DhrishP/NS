@@ -279,7 +279,7 @@ export default function GraphPage() {
                   value={newNodeName}
                   onChange={e => setNewNodeName(e.target.value)}
                   placeholder="vitalik.eth (Press /)"
-                  className="w-64 rounded-lg bg-white text-gray-900 placeholder:text-gray-400 border-0 ring-1 ring-gray-200 px-4 py-2 text-sm shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-64 rounded-lg bg-white text-black placeholder:text-gray-400 border-0 ring-1 ring-gray-200 px-4 py-2 text-sm shadow-sm transition-all focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
                 {isLoading && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -433,7 +433,7 @@ export default function GraphPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="vitalik.eth"
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none text-gray-900 placeholder:text-gray-400"
+              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none text-black placeholder:text-gray-400"
               autoFocus
             />
             <button 
