@@ -20,19 +20,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const results = await Promise.all(
-      uniqueNames.map(async (name) => {
-        try {
-          const avatar = await publicClient.getEnsAvatar({
-            name: normalize(name),
-          });
-          return { name, avatar };
-        } catch (e) {
-          console.error(`Failed to fetch avatar for ${name}`, e);
-          return { name, avatar: null };
-        }
-      })
-    );
+    // Chunking function to prevent overwhelming the RPC provider
+    const chunkArray = <T>(arr: T[], size: number): T[][] => {
+      return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+        arr.slice(i * size, i * size + size)
+      );
+    };
+
+    const results: { name: string; avatar: string | null }[] = [];
+    const chunks = chunkArray(uniqueNames, 5); // Process 5 at a time
+
+    for (const chunk of chunks) {
+      const chunkResults = await Promise.all(
+        chunk.map(async (name) => {
+          try {
+            const avatar = await publicClient.getEnsAvatar({
+              name: normalize(name),
+            });
+            return { name, avatar };
+          } catch (e) {
+            console.error(`Failed to fetch avatar for ${name}`, e);
+            return { name, avatar: null };
+          }
+        })
+      );
+      results.push(...chunkResults);
+    }
 
     return NextResponse.json({ results });
   } catch (error) {

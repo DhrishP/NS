@@ -4,7 +4,10 @@ import { normalize } from "viem/ens";
 
 export const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(),
+  transport: http(undefined, { batch: true }),
+  batch: {
+    multicall: true,
+  },
 });
 
 export const getEnsProfile = async (ensName: string) => {
