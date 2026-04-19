@@ -5,6 +5,6 @@ import postgres from 'postgres';
 config(); // Load .env
 
 const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/ens_graph';
-const client = postgres(connectionString, { ssl: 'require' });
+const client = postgres(connectionString, { ssl: 'require', prepare: false });
 export const db = drizzle(client);
 
